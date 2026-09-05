@@ -1,8 +1,19 @@
 /**
  * LLMProj-ViralVideo: Viral Hook & Retention Deconstructor
- * Entry point placeholder for Turn 1 setup.
+ * Main public entry point exposing type contracts, validators, and core services.
  */
 
+// Types & Contracts
+export * from './types/script.js';
+export * from './types/agents.js';
+
+// Validators & Schemas
+export * from './validators/scriptValidator.js';
+
+// Cadence & Pacing Services
+export * from './services/cadenceEstimator.js';
+
+// System Metadata (Backwards-compatibility)
 export interface SystemMetadata {
   readonly name: string;
   readonly version: string;
