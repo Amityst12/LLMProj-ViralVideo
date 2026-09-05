@@ -267,7 +267,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     econModelName.textContent = econ.modelUsed || 'mock-deterministic-local';
-    econLatencyVal.textContent = `${econ.wallTimeMs || 0}ms wall / ${econ.cumulativeTimeMs || 0}ms cum`;
+    const wallMs = econ.wallTimeMs || 0;
+    const cumMs = econ.cumulativeTimeMs || 0;
+    const speedup = (wallMs > 0 && cumMs > 0) ? (cumMs / wallMs).toFixed(1) : '1.0';
+    econLatencyVal.textContent = `${wallMs}ms wall / ${cumMs}ms cum (${speedup}x speedup)`;
 
     const tokens = econ.tokensUsed || { prompt: 0, completion: 0, total: 0 };
     econTokensVal.textContent = `${tokens.total.toLocaleString()} tokens`;
