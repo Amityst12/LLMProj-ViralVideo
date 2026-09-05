@@ -17,14 +17,67 @@
         <span class="brand-icon">⚡</span>
         <div class="brand-text">
           <h1>Viral Hook & Retention Deconstructor</h1>
-          <p class="subtitle">Adversarial Multi-Agent Attention Engine &bull; Zero Flattery</p>
+          <p class="subtitle">Cognified Multi-Agent Attention Engine &bull; Zero Flattery</p>
         </div>
       </div>
       <div class="header-badges">
         <span id="mode-badge" class="badge badge-sim">⚡ Simulation Mode</span>
         <span class="badge badge-rate">150 WPM Standard</span>
+        <button type="button" id="settings-toggle-btn" class="btn btn-secondary btn-sm" title="Configure OpenRouter API Key and Models">
+          ⚙️ Settings
+        </button>
       </div>
     </header>
+
+    <!-- Settings Drawer -->
+    <div id="settings-panel" class="settings-drawer hidden">
+      <div class="settings-content">
+        <div class="settings-header">
+          <div class="title-with-pill">
+            <h3>Engine & Model Settings</h3>
+            <span class="pill-tag pill-action">Module 9 Token Economics</span>
+          </div>
+          <button type="button" id="close-settings-btn" class="close-btn" aria-label="Close settings">&times;</button>
+        </div>
+
+        <div class="settings-grid">
+          <div class="settings-field">
+            <label for="engine-mode-select">Execution Engine</label>
+            <select id="engine-mode-select" class="form-select">
+              <option value="simulation">⚡ Offline Simulation (Deterministic Mock)</option>
+              <option value="live">🌐 Live OpenRouter AI Engine</option>
+            </select>
+          </div>
+
+          <div class="settings-field">
+            <label for="model-select">Model Architecture</label>
+            <select id="model-select" class="form-select">
+              <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+              <option value="deepseek/deepseek-chat">DeepSeek V3 ($0.14 / 1M)</option>
+              <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B ($0.12 / 1M)</option>
+              <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku ($0.80 / 1M)</option>
+              <option value="openai/gpt-4o-mini">GPT-4o Mini ($0.15 / 1M)</option>
+            </select>
+          </div>
+
+          <div class="settings-field full-width">
+            <label for="api-key-input">OpenRouter API Key</label>
+            <div class="key-input-wrapper">
+              <input
+                type="password"
+                id="api-key-input"
+                class="form-input"
+                placeholder="sk-or-v1-..."
+                autocomplete="off"
+              >
+              <button type="button" id="save-key-btn" class="btn btn-primary btn-sm">Save Key</button>
+              <button type="button" id="clear-key-btn" class="btn btn-secondary btn-sm">Clear</button>
+            </div>
+            <span class="field-hint">Stored exclusively in your local browser storage (localStorage). Never committed to repository.</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <main class="main-container">
       <!-- Input Panel Section -->
@@ -74,6 +127,40 @@
 
       <!-- Results View (Populated after deconstruction) -->
       <div id="results-view" class="results-layout hidden">
+        <!-- Token Economics & Performance Strip (Turn 5) -->
+        <section class="card economics-card" id="economics-card">
+          <div class="card-header">
+            <div class="title-with-pill">
+              <h3>Token Economics & Execution Telemetry</h3>
+              <span class="pill-tag pill-action">Real-Time Metrics</span>
+            </div>
+            <span id="econ-engine-badge" class="badge badge-sim">Simulation Mode</span>
+          </div>
+
+          <div class="economics-grid">
+            <div class="econ-stat-box">
+              <span class="econ-label">Active Model</span>
+              <strong id="econ-model-name" class="econ-value">mock-deterministic-local</strong>
+            </div>
+
+            <div class="econ-stat-box">
+              <span class="econ-label">Latency (Wall / Cumul.)</span>
+              <strong id="econ-latency-val" class="econ-value">35ms / 105ms</strong>
+            </div>
+
+            <div class="econ-stat-box">
+              <span class="econ-label">Token Consumption</span>
+              <strong id="econ-tokens-val" class="econ-value">450 tokens</strong>
+              <span id="econ-tokens-detail" class="econ-subtext">330 prompt / 120 comp</span>
+            </div>
+
+            <div class="econ-stat-box">
+              <span class="econ-label">Estimated Cost</span>
+              <strong id="econ-cost-val" class="econ-value cost-highlight">$0.000000</strong>
+            </div>
+          </div>
+        </section>
+
         <!-- Cadence & Temporal Windows (SC-1) -->
         <section class="card cadence-section">
           <div class="card-header">

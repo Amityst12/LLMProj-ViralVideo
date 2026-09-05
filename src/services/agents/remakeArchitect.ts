@@ -77,9 +77,9 @@ Swiper Verdict: ${input.swiperVerdict.brutalVerdict} (Swiped at second: ${input.
 Predicted Retention: ${input.swiperVerdict.predictedRetentionScore}%
 </diagnostics>
 
-<user_script_content>
+<user_script>
 ${input.fullScript}
-</user_script_content>
+</user_script>
 
 Synthesize exactly 3 rewrites (<= 8 words each). Return pure JSON.`;
 

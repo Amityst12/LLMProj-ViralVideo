@@ -145,6 +145,68 @@
 
 ---
 
+## Sprint 4 (Turn 5): Live OpenRouter Multi-Model Engine & Token Economics
+- **Modules Covered**: Module 9 (*Model Selection & Token Economics*), Module 14 (*Multi-Agent Deconstructor Engine*), Module 15 (*Anti-Sycophancy & Retention Heuristics*), Module 17 (*Security & Prompt Injection Containment*).
+- **Target Deliverable**: Live OpenRouter multi-model pipeline execution, dynamic client-driven API key authentication, model catalog endpoint (`GET /api/models`), token economics telemetry (prompt/completion tokens, latency, cost in USD), and prompt injection containment (`<user_script>`).
+- **Git Commit Target**: `feat(cognified): wire live OpenRouter multi-agent execution, token economics, and client model selector`
+
+### Architecture & Token Economics Layer
+
+```
+[Web Client Settings Drawer] (src/client/)
+- OpenRouter API Key (stored exclusively in browser localStorage)
+- Model Selector (dynamically loaded from GET /api/models)
+- Mode Indicator (Simulation vs Live OpenRouter)
+        |
+        |  HTTP POST /api/deconstruct { text, apiKey, model }
+        v
++-------------------------------------------------------------+
+| Express App Layer (src/app.ts)                              |
+| - GET  /api/models -> Returns recommended models & pricing  |
+| - POST /api/deconstruct -> Dynamic Driver Instantiation:    |
+|   * If apiKey provided -> OpenRouterLlmDriver(apiKey, model)|
+|   * Else -> MockLlmDriver()                                 |
++-------------------------------------------------------------+
+        |
+        v
++-------------------------------------------------------------+
+| Multi-Agent Orchestrator Pipeline (deconstructorOrchestrator)|
+| - Parallel Diagnostic Execution (Hook, Pacing, Skeptic)     |
+| - Prompt Injection Containment (<user_script> boundaries)   |
+| - Sequential Chained Remake (RemakeArchitect)              |
+| - Telemetry & Economics Aggregation:                        |
+|   * Wall Time (ms) vs Cumulative Model Time (ms)            |
+|   * Prompt & Completion Tokens per agent & total            |
+|   * Estimated Cost (USD) based on exact model pricing       |
++-------------------------------------------------------------+
+        |
+        v
+[Structured Report with ExecutionEconomics]
+        |
+        v
+[Web Dashboard Telemetry Strip]
+- Mode Badge (LIVE OPENROUTER vs DETERMINISTIC SIMULATION)
+- Active Model Name
+- Wall Time (ms) & Parallelism Speedup Ratio
+- Total Tokens (Prompt + Completion)
+- Estimated Cost in USD ($0.000000 format)
+```
+
+### Team Contributions (Sprint 4 / Turn 5)
+1. **Alan (Core Backend & Systems - Implementation)**:
+   - **Driver & Economics**: Enhanced `OpenRouterLlmDriver` in `src/drivers/llmDriver.ts` with dynamic API key authentication, high-precision latency tracking (`performance.now()`), token usage tracking (`prompt_tokens`, `completion_tokens`), and exact cost computation using `RECOMMENDED_MODELS` pricing tables.
+   - **Data Contracts & Validation**: Extended `src/types/agents.ts` and `src/validators/scriptValidator.ts` with `TokenUsage` and `ExecutionEconomics` (optional on `DeconstructorReport` for backwards compatibility).
+   - **Security & Injection Containment (Module 17)**: Fortified agent prompts in `hookAuditor.ts`, `skepticSwiper.ts`, and `remakeArchitect.ts` with `<user_script>` boundary containment and mandatory script quotation rules.
+   - **API Server Expansion**: Added `GET /api/models` returning catalog and pricing metadata; updated `POST /api/deconstruct` to extract optional `apiKey` and `model` and instantiate `OpenRouterLlmDriver` dynamically.
+   - **Web Dashboard Telemetry UI**: Added settings drawer modal with `localStorage` API key persistence, dynamic model dropdown, and a live Token Economics & Telemetry Strip displaying real-time metrics.
+2. **Ada (QA & Test Automation)**:
+   - Added 2 integration tests in `tests/integration/apiRoute.test.ts` verifying `GET /api/models` catalog structure and validating `economics` telemetry inclusion on `POST /api/deconstruct`.
+3. **Grace (Gatekeeper & Verification)**:
+   - Audited zero-leakage security gate: confirmed zero keys committed or logged.
+   - Executed full verification gate: 58/58 tests passing across 6 test suites with 0 lint warnings and 0 TypeScript compilation errors.
+
+---
+
 ## Comprehensive Verification Gate Audit Report
 
 | Gate Check | Execution Command | Result | Audit Findings & Quality Metrics |
@@ -152,16 +214,16 @@
 | **Zero-Leakage Secrets** | `node scripts/check-secrets.mjs` | **PASSED** | 0 secrets, API keys, or private tokens detected across workspace |
 | **ESLint Static Analysis** | `npm run lint` | **PASSED** | 0 errors, 0 warnings (clean TypeScript ESLint v8/9) |
 | **TypeScript Strict Build** | `npm run build` | **PASSED** | TypeScript 5.x strict mode compilation passed with 0 diagnostic issues |
-| **Vitest Test Suite** | `npm run test` | **PASSED** | **56/56 tests passed across 6 test files (100% pass rate)** |
+| **Vitest Test Suite** | `npm run test` | **PASSED** | **58/58 tests passed across 6 test files (100% pass rate)** |
 | **Composite Pipeline Gate** | `npm run verify` | **PASSED** | Entire lint -> build -> test verification chain succeeded cleanly |
 
 ---
 
-## Test Suite Inventory (56 Tests Passing)
+## Test Suite Inventory (58 Tests Passing)
 
 1. `tests/index.test.ts` (1 test): System metadata and initialization contract.
 2. `tests/unit/cadenceEstimator.test.ts` (13 tests): 150 WPM math, temporal slicing, boundary rejection.
 3. `tests/unit/scriptValidator.test.ts` (11 tests): Zod schema constraints, whitespace trimming, 2,000-character caps.
 4. `tests/unit/coordination.test.ts` (12 tests): Multi-agent output contracts and Anti-Sycophancy invariant enforcement.
 5. `tests/unit/orchestrator.test.ts` (11 tests): End-to-end pipeline execution, parallel diagnostics, chained remake, JSON extractor, and driver injection.
-6. `tests/integration/apiRoute.test.ts` (8 tests): HTTP delivery layer, health checks, static asset delivery, and API boundary validation.
+6. `tests/integration/apiRoute.test.ts` (10 tests): HTTP delivery layer, health checks, static asset delivery, API boundary validation, `/api/models` catalog, and execution economics telemetry.

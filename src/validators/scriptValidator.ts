@@ -139,6 +139,27 @@ export const RemakeOutputSchema = z.object({
 });
 
 /**
+ * Token usage schema.
+ */
+export const TokenUsageSchema = z.object({
+  prompt: z.number().min(0),
+  completion: z.number().min(0),
+  total: z.number().min(0),
+});
+
+/**
+ * Execution economics & performance schema.
+ */
+export const ExecutionEconomicsSchema = z.object({
+  wallTimeMs: z.number().min(0),
+  cumulativeTimeMs: z.number().min(0),
+  tokensUsed: TokenUsageSchema,
+  estimatedCostUsd: z.number().min(0),
+  modelUsed: z.string().min(1),
+  isLiveExecution: z.boolean(),
+});
+
+/**
  * Full deconstructor report schema with strict Anti-Sycophancy invariant (SC-2.1).
  */
 export const DeconstructorReportSchema = z.object({
@@ -154,6 +175,7 @@ export const DeconstructorReportSchema = z.object({
     .min(2, 'Anti-Sycophancy Invariant Violated: Must identify at least 2 negative failure points in the hook'),
   swiperVerdict: SkepticSwiperOutputSchema,
   prescriptiveRewrites: z.array(ArchetypeRewriteSchema).length(3, 'Must provide exactly 3 archetypal rewrites'),
+  economics: ExecutionEconomicsSchema.optional(),
 });
 
 /**

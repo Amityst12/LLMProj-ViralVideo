@@ -1,11 +1,11 @@
 /**
- * Multi-Agent Deconstructor Orchestrator.
+ * Multi-Agent Deconstructor Orchestrator with Token Economics & Performance Tracking.
  * Implements the full pipeline flow:
  * Ingestion -> Cadence -> Parallel Diagnostic Agents -> Chained Remake -> Final Schema Invariant Gate.
  */
 
-import { type LlmDriver, MockLlmDriver } from '../drivers/llmDriver.js';
-import type { DeconstructorReport } from '../types/agents.js';
+import { type LlmDriver, MockLlmDriver, OpenRouterLlmDriver } from '../drivers/llmDriver.js';
+import type { DeconstructorReport, ExecutionEconomics } from '../types/agents.js';
 import type { CustomTimestamp, InputScript } from '../types/script.js';
 import { DeconstructorReportSchema } from '../validators/scriptValidator.js';
 import { HookAuditor } from './agents/hookAuditor.js';
@@ -39,7 +39,10 @@ export class DeconstructorOrchestrator {
     input: string | InputScript,
     options?: DeconstructOptions
   ): Promise<DeconstructorReport> {
+    const pipelineStartTime = performance.now();
     const activeDriver = options?.driver ?? this.driver;
+    activeDriver.resetMetrics?.();
+
     const hookAuditor = activeDriver === this.driver ? this.hookAuditor : new HookAuditor(activeDriver);
     const pacingTracker = activeDriver === this.driver ? this.pacingTracker : new PacingTracker(activeDriver);
     const skepticSwiper = activeDriver === this.driver ? this.skepticSwiper : new SkepticSwiper(activeDriver);
@@ -79,7 +82,48 @@ export class DeconstructorOrchestrator {
       pacing: pacingMetrics,
     });
 
-    // Stage 4: Assembly & Final Output Invariant Enforcement
+    const wallTimeMs = Math.max(1, Math.round(performance.now() - pipelineStartTime));
+
+    // Stage 4: Aggregate Token Economics
+    const metricsHistory = activeDriver.getAccumulatedMetrics?.() ?? [];
+    let cumulativeTimeMs = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let estimatedCostUsd = 0;
+    let modelUsed = activeDriver instanceof OpenRouterLlmDriver
+      ? activeDriver.getModel()
+      : 'mock-deterministic-local';
+
+    for (const m of metricsHistory) {
+      cumulativeTimeMs += m.executionTimeMs;
+      promptTokens += m.tokensUsed.prompt;
+      completionTokens += m.tokensUsed.completion;
+      estimatedCostUsd += m.estimatedCostUsd;
+      modelUsed = m.model;
+    }
+
+    if (cumulativeTimeMs === 0) {
+      cumulativeTimeMs = wallTimeMs;
+    }
+    if (promptTokens === 0) {
+      promptTokens = Math.max(150, Math.round(cadence.totalWordCount * 4));
+      completionTokens = 240;
+    }
+
+    const economics: ExecutionEconomics = {
+      wallTimeMs,
+      cumulativeTimeMs,
+      tokensUsed: {
+        prompt: promptTokens,
+        completion: completionTokens,
+        total: promptTokens + completionTokens,
+      },
+      estimatedCostUsd: Number(estimatedCostUsd.toFixed(6)),
+      modelUsed,
+      isLiveExecution: activeDriver instanceof OpenRouterLlmDriver,
+    };
+
+    // Stage 5: Assembly & Final Output Invariant Enforcement
     const assembledReport: DeconstructorReport = {
       metadata: {
         evaluatedAt: new Date().toISOString(),
@@ -91,6 +135,7 @@ export class DeconstructorOrchestrator {
       negativeCritique: hookAudit.negativeCritique,
       swiperVerdict,
       prescriptiveRewrites: remake.prescriptiveRewrites ?? remake.rewrites,
+      economics,
     };
 
     return DeconstructorReportSchema.parse(assembledReport);

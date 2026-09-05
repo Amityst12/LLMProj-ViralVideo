@@ -193,5 +193,38 @@ describe('Delivery Layer & API Integration Tests (Turn 4)', () => {
       expect(response.status).toBe(400);
       expect(response.body).toBeDefined();
     });
+
+    it('returns 200 OK with Token Economics metadata in response (Turn 5)', async () => {
+      const response = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: viralScript })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      expect(response.body.economics).toBeDefined();
+      expect(response.body.economics.wallTimeMs).toBeGreaterThan(0);
+      expect(response.body.economics.cumulativeTimeMs).toBeGreaterThan(0);
+      expect(response.body.economics.tokensUsed.total).toBeGreaterThan(0);
+      expect(typeof response.body.economics.estimatedCostUsd).toBe('number');
+      expect(typeof response.body.economics.isLiveExecution).toBe('boolean');
+    });
+  });
+
+  describe('GET /api/models (Turn 5 Token Economics)', () => {
+    it('returns 200 OK with recommended OpenRouter models and pricing rates', async () => {
+      const response = await request(getApp()).get('/api/models');
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('ok');
+      expect(Array.isArray(response.body.models)).toBe(true);
+      expect(response.body.models.length).toBeGreaterThanOrEqual(3);
+
+      const firstModel = response.body.models[0];
+      expect(firstModel).toHaveProperty('id');
+      expect(firstModel).toHaveProperty('name');
+      expect(firstModel).toHaveProperty('description');
+      expect(firstModel).toHaveProperty('promptCostPerMillion');
+      expect(firstModel).toHaveProperty('completionCostPerMillion');
+    });
   });
 });

@@ -58,6 +58,21 @@ export interface DeconstructorReportMetadata {
   readonly estimatedDurationSeconds: number;
 }
 
+export interface TokenUsage {
+  readonly prompt: number;
+  readonly completion: number;
+  readonly total: number;
+}
+
+export interface ExecutionEconomics {
+  readonly wallTimeMs: number;
+  readonly cumulativeTimeMs: number;
+  readonly tokensUsed: TokenUsage;
+  readonly estimatedCostUsd: number;
+  readonly modelUsed: string;
+  readonly isLiveExecution: boolean;
+}
+
 export interface DeconstructorReport {
   readonly metadata: DeconstructorReportMetadata;
   readonly segments: readonly ScriptSegment[];
@@ -65,4 +80,5 @@ export interface DeconstructorReport {
   readonly negativeCritique: readonly string[];
   readonly swiperVerdict: SkepticSwiperOutput;
   readonly prescriptiveRewrites: readonly ArchetypeRewrite[];
+  readonly economics?: ExecutionEconomics;
 }

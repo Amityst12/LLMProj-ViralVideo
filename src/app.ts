@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deconstructScript } from './services/deconstructorOrchestrator.js';
 import { validateScriptText, ValidationError } from './validators/scriptValidator.js';
+import { MockLlmDriver, OpenRouterLlmDriver, RECOMMENDED_MODELS } from './drivers/llmDriver.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,10 +56,18 @@ export function createApp(): Express {
     }
   });
 
+  // Models and pricing endpoint
+  app.get('/api/models', (_req: Request, res: Response) => {
+    res.status(200).json({
+      status: 'ok',
+      models: RECOMMENDED_MODELS,
+    });
+  });
+
   // Script deconstruction endpoint
   app.post('/api/deconstruct', async (req: Request, res: Response): Promise<void> => {
     try {
-      const body = req.body as { text?: unknown } | null | undefined;
+      const body = req.body as { text?: unknown; apiKey?: unknown; model?: unknown } | null | undefined;
       if (!body || typeof body !== 'object' || !('text' in body)) {
         res.status(400).json({
           error: 'ValidationError',
@@ -83,8 +92,23 @@ export function createApp(): Express {
         throw validationErr;
       }
 
+      // Dynamic driver configuration: Live OpenRouter when API key provided, else Mock
+      const apiKey =
+        typeof body.apiKey === 'string' && body.apiKey.trim().length > 0
+          ? body.apiKey.trim()
+          : process.env['OPENROUTER_API_KEY'];
+
+      const model =
+        typeof body.model === 'string' && body.model.trim().length > 0
+          ? body.model.trim()
+          : undefined;
+
+      const driver = apiKey
+        ? new OpenRouterLlmDriver({ apiKey, model })
+        : new MockLlmDriver();
+
       // Execute full multi-agent pipeline
-      const report = await deconstructScript(validatedText);
+      const report = await deconstructScript(validatedText, { driver });
       res.status(200).json(report);
     } catch (err) {
       console.error('[API Error in /api/deconstruct]:', err);

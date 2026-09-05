@@ -1,5 +1,5 @@
 /**
- * Pluggable LLM Driver Layer.
+ * Pluggable LLM Driver Layer with Token Economics and Latency Tracking.
  * Supports deterministic Mock testing and live cloud inference via OpenRouter.
  */
 
@@ -24,8 +24,91 @@ export interface GenerateJsonOptions<T> {
   readonly temperature?: number;
 }
 
+export interface CallMetrics {
+  readonly executionTimeMs: number;
+  readonly tokensUsed: {
+    readonly prompt: number;
+    readonly completion: number;
+    readonly total: number;
+  };
+  readonly estimatedCostUsd: number;
+  readonly model: string;
+}
+
+export interface DriverResponse<T> {
+  readonly data: T;
+  readonly metrics: CallMetrics;
+}
+
+export interface ModelPricing {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly promptCostPerMillion: number;
+  readonly completionCostPerMillion: number;
+}
+
+/**
+ * Recommended OpenRouter models with current baseline rates.
+ */
+export const RECOMMENDED_MODELS: readonly ModelPricing[] = [
+  {
+    id: 'google/gemini-2.0-flash-exp:free',
+    name: 'Gemini 2.0 Flash (Free)',
+    description: 'Ultra-fast multimodal reasoning with zero cost',
+    promptCostPerMillion: 0.0,
+    completionCostPerMillion: 0.0,
+  },
+  {
+    id: 'deepseek/deepseek-chat',
+    name: 'DeepSeek V3',
+    description: 'High-reasoning attention dynamics at minimal cost',
+    promptCostPerMillion: 0.14,
+    completionCostPerMillion: 0.28,
+  },
+  {
+    id: 'meta-llama/llama-3.3-70b-instruct',
+    name: 'Llama 3.3 70B',
+    description: 'Open-weights retention copywriting specialist',
+    promptCostPerMillion: 0.12,
+    completionCostPerMillion: 0.30,
+  },
+  {
+    id: 'anthropic/claude-3.5-haiku',
+    name: 'Claude 3.5 Haiku',
+    description: 'Fast, nuanced pattern interrupt evaluation',
+    promptCostPerMillion: 0.80,
+    completionCostPerMillion: 4.00,
+  },
+  {
+    id: 'openai/gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    description: 'High-throughput multimodal hook synthesis',
+    promptCostPerMillion: 0.15,
+    completionCostPerMillion: 0.60,
+  },
+];
+
+export function calculateTokenCost(
+  modelId: string,
+  promptTokens: number,
+  completionTokens: number
+): number {
+  const model = RECOMMENDED_MODELS.find((m) => m.id === modelId);
+  const promptRate = model ? model.promptCostPerMillion : 0.15;
+  const completionRate = model ? model.completionCostPerMillion : 0.60;
+
+  const cost =
+    (promptTokens / 1_000_000) * promptRate +
+    (completionTokens / 1_000_000) * completionRate;
+  return Number(cost.toFixed(6));
+}
+
 export interface LlmDriver {
   generateJson<T>(options: GenerateJsonOptions<T>): Promise<T>;
+  generateJsonWithMeta<T>(options: GenerateJsonOptions<T>): Promise<DriverResponse<T>>;
+  getAccumulatedMetrics(): readonly CallMetrics[];
+  resetMetrics(): void;
 }
 
 /**
@@ -85,6 +168,7 @@ export function extractJsonFromText(raw: string): unknown {
  */
 export class MockLlmDriver implements LlmDriver {
   private readonly customResponses: Map<string, unknown> = new Map();
+  private accumulatedMetrics: CallMetrics[] = [];
 
   constructor(customResponses?: Record<string, unknown>) {
     if (customResponses) {
@@ -98,13 +182,35 @@ export class MockLlmDriver implements LlmDriver {
     this.customResponses.set(key, response);
   }
 
+  public getAccumulatedMetrics(): readonly CallMetrics[] {
+    return [...this.accumulatedMetrics];
+  }
+
+  public resetMetrics(): void {
+    this.accumulatedMetrics = [];
+  }
+
   public async generateJson<T>(options: GenerateJsonOptions<T>): Promise<T> {
+    const res = await this.generateJsonWithMeta<T>(options);
+    return res.data;
+  }
+
+  public async generateJsonWithMeta<T>(options: GenerateJsonOptions<T>): Promise<DriverResponse<T>> {
+    const startTime = performance.now();
     const { prompt, schema } = options;
 
     // Check for explicit custom mocks
     for (const [key, val] of this.customResponses.entries()) {
       if (prompt.includes(key)) {
-        return (schema ? schema.parse(val) : val) as T;
+        const data = (schema ? schema.parse(val) : val) as T;
+        const metrics: CallMetrics = {
+          executionTimeMs: Math.max(5, Math.round(performance.now() - startTime)),
+          tokensUsed: { prompt: 150, completion: 80, total: 230 },
+          estimatedCostUsd: 0.0,
+          model: 'mock-deterministic-local',
+        };
+        this.accumulatedMetrics.push(metrics);
+        return { data, metrics };
       }
     }
 
@@ -156,10 +262,24 @@ export class MockLlmDriver implements LlmDriver {
       payload = this.getMockHookAuditor(isViral);
     }
 
-    if (schema) {
-      return schema.parse(payload);
-    }
-    return payload as T;
+    const data = (schema ? schema.parse(payload) : payload) as T;
+    const promptTokens = Math.max(100, Math.round(prompt.length / 3.8));
+    const completionTokens = 120;
+    const executionTimeMs = Math.max(8, Math.round(performance.now() - startTime + 15));
+
+    const metrics: CallMetrics = {
+      executionTimeMs,
+      tokensUsed: {
+        prompt: promptTokens,
+        completion: completionTokens,
+        total: promptTokens + completionTokens,
+      },
+      estimatedCostUsd: 0.0,
+      model: 'mock-deterministic-local',
+    };
+
+    this.accumulatedMetrics.push(metrics);
+    return { data, metrics };
   }
 
   private getMockHookAuditor(isViral: boolean): HookAuditorOutput {
@@ -301,28 +421,47 @@ export interface OpenRouterDriverOptions {
 }
 
 /**
- * OpenRouterLlmDriver: Production driver connecting to OpenRouter API.
+ * OpenRouterLlmDriver: Production driver connecting to OpenRouter API with token economics measurement.
  */
 export class OpenRouterLlmDriver implements LlmDriver {
   private readonly apiKey: string;
   private readonly model: string;
   private readonly baseUrl: string;
   private readonly fetchFn: typeof fetch;
+  private accumulatedMetrics: CallMetrics[] = [];
 
   constructor(options?: OpenRouterDriverOptions) {
     this.apiKey = options?.apiKey ?? process.env['OPENROUTER_API_KEY'] ?? '';
-    this.model = options?.model ?? 'google/gemini-2.5-flash';
+    this.model = options?.model ?? 'google/gemini-2.0-flash-exp:free';
     this.baseUrl = options?.baseUrl ?? 'https://openrouter.ai/api/v1';
     this.fetchFn = options?.fetchFn ?? globalThis.fetch;
   }
 
+  public getModel(): string {
+    return this.model;
+  }
+
+  public getAccumulatedMetrics(): readonly CallMetrics[] {
+    return [...this.accumulatedMetrics];
+  }
+
+  public resetMetrics(): void {
+    this.accumulatedMetrics = [];
+  }
+
   public async generateJson<T>(options: GenerateJsonOptions<T>): Promise<T> {
+    const res = await this.generateJsonWithMeta<T>(options);
+    return res.data;
+  }
+
+  public async generateJsonWithMeta<T>(options: GenerateJsonOptions<T>): Promise<DriverResponse<T>> {
     if (!this.apiKey) {
       throw new Error(
         'OPENROUTER_API_KEY is not configured. Provide it via constructor options or process.env.OPENROUTER_API_KEY'
       );
     }
 
+    const startTime = performance.now();
     const { prompt, schema, systemPrompt, temperature = 0.2 } = options;
 
     const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
@@ -354,6 +493,11 @@ export class OpenRouterLlmDriver implements LlmDriver {
 
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+      };
     };
 
     const content = data.choices?.[0]?.message?.content;
@@ -362,11 +506,26 @@ export class OpenRouterLlmDriver implements LlmDriver {
     }
 
     const parsedJson = extractJsonFromText(content);
+    const validatedData = (schema ? schema.parse(parsedJson) : parsedJson) as T;
 
-    if (schema) {
-      return schema.parse(parsedJson);
-    }
+    const executionTimeMs = Math.round(performance.now() - startTime);
+    const promptTokens = data.usage?.prompt_tokens ?? Math.round(prompt.length / 4);
+    const completionTokens = data.usage?.completion_tokens ?? Math.round(content.length / 4);
+    const totalTokens = data.usage?.total_tokens ?? (promptTokens + completionTokens);
+    const estimatedCostUsd = calculateTokenCost(this.model, promptTokens, completionTokens);
 
-    return parsedJson as T;
+    const metrics: CallMetrics = {
+      executionTimeMs,
+      tokensUsed: {
+        prompt: promptTokens,
+        completion: completionTokens,
+        total: totalTokens,
+      },
+      estimatedCostUsd,
+      model: this.model,
+    };
+
+    this.accumulatedMetrics.push(metrics);
+    return { data: validatedData, metrics };
   }
 }

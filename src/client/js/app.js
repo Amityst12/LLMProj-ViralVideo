@@ -1,11 +1,17 @@
 /**
  * Client-side Controller for Viral Hook & Retention Deconstructor Dashboard.
- * Handles DOM interactions, live character counter, sample loading, API calls, and dynamic rendering.
+ * Turn 5: Live OpenRouter Multi-Model Engine & Token Economics.
  */
 
 const VIRAL_SAMPLE = `Stop drinking coffee immediately after waking up. When you wake up, your cortisol levels are already peaking naturally. Introducing caffeine immediately spikes your heart rate and causes a severe energy crash by early afternoon. Instead, drink sixteen ounces of mineral water with Celtic sea salt. Wait ninety minutes before your first brew so your adenosine receptors clear. This simple reset stabilizes your focus, eliminates afternoon brain fog, and keeps your mental clarity sharp all day long.`;
 
 const MEDIOCRE_SAMPLE = `היי חברים, מה קורה? ברוכים הבאים לעוד סרטון בערוץ שלי! היום אני רוצה לדבר איתכם על איך לנהל את הזמן שלכם יותר טוב, כי שמתי לב שהמון אנשים מסתבכים עם זה ביומיום. אבל רגע לפני שנתחיל, אם אתם חדשים פה, אל תשכחו ללחוץ על כפתור הסאבסקרייב ולהפעיל את הפעמון כדי לא לפספס אף עדכון. אז ככה, ניהול זמן זה אחד הדברים הכי חשובים לכל עצמאי או סטודנט שרוצה להצליח בחיים, ואני הולך לתת לכם כמה טיפים שיעזרו לכם.`;
+
+const STORAGE_KEYS = {
+  API_KEY: 'viral_deconstructor_openrouter_key',
+  MODEL: 'viral_deconstructor_selected_model',
+  ENGINE: 'viral_deconstructor_engine_mode',
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   // Elements
@@ -24,22 +30,122 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadViralBtn = document.getElementById('load-viral-btn');
   const loadMediocreBtn = document.getElementById('load-mediocre-btn');
 
-  // Check health and update mode badge
-  async function checkHealth() {
+  // Settings elements
+  const settingsToggleBtn = document.getElementById('settings-toggle-btn');
+  const settingsPanel = document.getElementById('settings-panel');
+  const closeSettingsBtn = document.getElementById('close-settings-btn');
+  const engineModeSelect = document.getElementById('engine-mode-select');
+  const modelSelect = document.getElementById('model-select');
+  const apiKeyInput = document.getElementById('api-key-input');
+  const saveKeyBtn = document.getElementById('save-key-btn');
+  const clearKeyBtn = document.getElementById('clear-key-btn');
+
+  // Economics elements
+  const econEngineBadge = document.getElementById('econ-engine-badge');
+  const econModelName = document.getElementById('econ-model-name');
+  const econLatencyVal = document.getElementById('econ-latency-val');
+  const econTokensVal = document.getElementById('econ-tokens-val');
+  const econTokensDetail = document.getElementById('econ-tokens-detail');
+  const econCostVal = document.getElementById('econ-cost-val');
+
+  // 1. Fetch available models from /api/models
+  async function loadModels() {
     try {
-      const res = await fetch('/api/health');
+      const res = await fetch('/api/models');
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'ok') {
-          // If server is active
-          console.log('[System Online]:', data);
+        if (Array.isArray(data.models) && data.models.length > 0) {
+          const currentVal = modelSelect.value;
+          modelSelect.innerHTML = '';
+          for (const m of data.models) {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = `${m.name} ($${m.promptCostPerMillion} / 1M)`;
+            modelSelect.appendChild(opt);
+          }
+          if (currentVal && [...modelSelect.options].some((o) => o.value === currentVal)) {
+            modelSelect.value = currentVal;
+          }
         }
       }
     } catch {
-      // Offline fallback
+      // Keep static defaults if offline
     }
   }
-  checkHealth();
+  loadModels();
+
+  // 2. Initialize Settings from localStorage
+  function initSettings() {
+    const savedKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
+    const savedModel = localStorage.getItem(STORAGE_KEYS.MODEL) || 'google/gemini-2.0-flash-exp:free';
+    const savedEngine = localStorage.getItem(STORAGE_KEYS.ENGINE) || (savedKey ? 'live' : 'simulation');
+
+    if (savedKey) {
+      apiKeyInput.value = savedKey;
+    }
+    if (savedModel) {
+      modelSelect.value = savedModel;
+    }
+    engineModeSelect.value = savedEngine;
+    updateModeBadge();
+  }
+
+  function updateModeBadge() {
+    const isLive = engineModeSelect.value === 'live' && apiKeyInput.value.trim().length > 0;
+    if (isLive) {
+      modeBadge.className = 'badge badge-live';
+      modeBadge.textContent = '🌐 Live OpenRouter AI';
+    } else {
+      modeBadge.className = 'badge badge-sim';
+      modeBadge.textContent = '⚡ Simulation Mode';
+    }
+  }
+
+  initSettings();
+
+  // Settings Drawer Toggle
+  settingsToggleBtn.addEventListener('click', () => {
+    settingsPanel.classList.toggle('hidden');
+  });
+
+  closeSettingsBtn.addEventListener('click', () => {
+    settingsPanel.classList.add('hidden');
+  });
+
+  saveKeyBtn.addEventListener('click', () => {
+    const key = apiKeyInput.value.trim();
+    if (key) {
+      localStorage.setItem(STORAGE_KEYS.API_KEY, key);
+      engineModeSelect.value = 'live';
+      localStorage.setItem(STORAGE_KEYS.ENGINE, 'live');
+      saveKeyBtn.textContent = '✅ Saved!';
+      setTimeout(() => {
+        saveKeyBtn.textContent = 'Save Key';
+      }, 1800);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.API_KEY);
+      engineModeSelect.value = 'simulation';
+      localStorage.setItem(STORAGE_KEYS.ENGINE, 'simulation');
+    }
+    updateModeBadge();
+  });
+
+  clearKeyBtn.addEventListener('click', () => {
+    apiKeyInput.value = '';
+    localStorage.removeItem(STORAGE_KEYS.API_KEY);
+    engineModeSelect.value = 'simulation';
+    localStorage.setItem(STORAGE_KEYS.ENGINE, 'simulation');
+    updateModeBadge();
+  });
+
+  engineModeSelect.addEventListener('change', () => {
+    localStorage.setItem(STORAGE_KEYS.ENGINE, engineModeSelect.value);
+    updateModeBadge();
+  });
+
+  modelSelect.addEventListener('change', () => {
+    localStorage.setItem(STORAGE_KEYS.MODEL, modelSelect.value);
+  });
 
   // Character and Word Counter
   function updateCounters() {
@@ -114,13 +220,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setLoading(true);
 
+    const payload = { text: rawText };
+    const isLive = engineModeSelect.value === 'live';
+    const apiKey = apiKeyInput.value.trim();
+    if (isLive && apiKey) {
+      payload.apiKey = apiKey;
+      payload.model = modelSelect.value;
+    }
+
     try {
       const response = await fetch('/api/deconstruct', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: rawText }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -142,6 +256,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render Full Report
   function renderReport(report) {
+    // 0. Render Token Economics
+    const econ = report.economics || {};
+    if (econ.isLiveExecution) {
+      econEngineBadge.className = 'badge badge-live';
+      econEngineBadge.textContent = 'Live OpenRouter AI';
+    } else {
+      econEngineBadge.className = 'badge badge-sim';
+      econEngineBadge.textContent = 'Simulation Mode (Mock)';
+    }
+
+    econModelName.textContent = econ.modelUsed || 'mock-deterministic-local';
+    econLatencyVal.textContent = `${econ.wallTimeMs || 0}ms wall / ${econ.cumulativeTimeMs || 0}ms cum`;
+
+    const tokens = econ.tokensUsed || { prompt: 0, completion: 0, total: 0 };
+    econTokensVal.textContent = `${tokens.total.toLocaleString()} tokens`;
+    econTokensDetail.textContent = `${tokens.prompt.toLocaleString()} prompt / ${tokens.completion.toLocaleString()} comp`;
+
+    const cost = typeof econ.estimatedCostUsd === 'number' ? econ.estimatedCostUsd : 0;
+    econCostVal.textContent = cost > 0 ? `$${cost.toFixed(6)}` : '$0.000000 (Free)';
+
     // 1. Cadence Windows
     const segments = report.segments || [];
     const swipeSeg = segments.find((s) => s.window === 'swipe_zone');
@@ -189,8 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
       riskLabel.textContent = isSevere ? 'Critical Abandonment' : 'High Friction';
     }
 
-    document.getElementById('brutalVerdict-quote' in document ? 'brutalVerdict-quote' : 'brutal-verdict-quote').textContent =
-      `"${swiper.brutalVerdict || 'No verdict provided.'}"`;
+    const brutalQuoteEl = document.getElementById('brutal-verdict-quote');
+    if (brutalQuoteEl) {
+      brutalQuoteEl.textContent = `"${swiper.brutalVerdict || 'No verdict provided.'}"`;
+    }
 
     // 3. 5 Retention Dimensions
     const dims = report.dimensions || {};
