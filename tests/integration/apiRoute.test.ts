@@ -1,0 +1,197 @@
+/**
+ * tests/integration/apiRoute.test.ts
+ *
+ * Acceptance & Integration tests for Delivery Layer & Web Server (Module 7 & Module 8).
+ * Tests HTTP API endpoints and static delivery before Alan's server implementation.
+ *
+ * Invariants tested:
+ * 1. POST /api/deconstruct:
+ *    - Status 200 with full DeconstructorReport (Cadence, Diagnostics, 3 Rewrites) for valid scripts.
+ *    - Status 400 with detailed ValidationError for empty, whitespace-only, or oversized (> 2,000 chars) scripts.
+ * 2. GET /api/health:
+ *    - Status 200 with health metadata.
+ * 3. Static Web Serving:
+ *    - GET / returns 200 OK with index.html (text/html content).
+ */
+
+import { describe, it, expect } from 'vitest';
+import request from 'supertest';
+import { DeconstructorReportSchema } from '../../src/validators/scriptValidator.js';
+import {
+  viralScript,
+  mediocreScript,
+  oversizedScript,
+  emptyScript,
+  whitespaceScript,
+} from '../fixtures/scripts.js';
+
+type AppTarget = Parameters<typeof request>[0];
+
+let app: AppTarget | null = null;
+
+try {
+  // @ts-expect-error - Server implementation pending in src/server.ts by Alan
+  const mod = await import('../../src/server.js');
+  app = (mod.app ?? (typeof mod.createApp === 'function' ? mod.createApp() : mod.default)) as AppTarget;
+} catch {
+  try {
+    // @ts-expect-error - Fallback to src/app.js if implemented there
+    const mod = await import('../../src/app.js');
+    app = (mod.app ?? (typeof mod.createApp === 'function' ? mod.createApp() : mod.default)) as AppTarget;
+  } catch {
+    try {
+      // @ts-expect-error - Fallback to src/index.js if exported there
+      const mod = await import('../../src/index.js');
+      app = (mod.app ?? (typeof mod.createApp === 'function' ? mod.createApp() : undefined)) as AppTarget;
+    } catch {
+      app = null;
+    }
+  }
+}
+
+function getApp(): AppTarget {
+  if (!app) {
+    throw new Error(
+      'API server application is not yet implemented in src/server.ts or src/app.ts (TDD Red Phase - awaiting Alan implementation)'
+    );
+  }
+  return app;
+}
+
+describe('Delivery Layer & API Integration Tests (Turn 4)', () => {
+  describe('GET /api/health', () => {
+    it('returns status 200 OK with health status metadata', async () => {
+      const response = await request(getApp()).get('/api/health');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toMatch(/json/);
+      expect(response.body).toBeDefined();
+      expect(response.body.status).toBeDefined();
+    });
+  });
+
+  describe('Static Asset Serving (GET /)', () => {
+    it('serves the web dashboard index.html on root path with status 200', async () => {
+      const response = await request(getApp()).get('/');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toMatch(/text\/html/);
+      expect(response.text.toLowerCase()).toContain('<html');
+    });
+  });
+
+  describe('POST /api/deconstruct', () => {
+    it('returns 200 OK with a complete DeconstructorReport for valid viralScript', async () => {
+      const response = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: viralScript })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toMatch(/json/);
+
+      // Verify response body complies strictly with DeconstructorReportSchema
+      const parsedReport = DeconstructorReportSchema.safeParse(response.body);
+      expect(parsedReport.success).toBe(true);
+
+      if (parsedReport.success) {
+        const report = parsedReport.data;
+
+        // 1. Cadence & Temporal Windows (SC-1)
+        expect(report.segments).toHaveLength(3);
+        expect(report.segments[0].window).toBe('swipe_zone');
+        expect(report.segments[1].window).toBe('value_delivery');
+        expect(report.segments[2].window).toBe('body_and_resolution');
+        expect(report.segments[0].wordCount).toBeGreaterThanOrEqual(7);
+        expect(report.segments[0].wordCount).toBeLessThanOrEqual(8);
+
+        // 2. Diagnostics & Retention Dimensions (SC-2)
+        expect(report.dimensions.compositeScore).toBeGreaterThanOrEqual(0);
+        expect(report.dimensions.compositeScore).toBeLessThanOrEqual(100);
+
+        // 3. Strict Anti-Sycophancy Invariant: >= 2 concrete failure points
+        expect(report.negativeCritique.length).toBeGreaterThanOrEqual(2);
+
+        // 4. Adversarial Skeptic Swiper Simulation (SC-3)
+        expect(['1', '2', '3', 'survived', 1, 2, 3]).toContain(report.swiperVerdict.swipeAtSecond);
+        expect(report.swiperVerdict.brutalVerdict.length).toBeGreaterThan(0);
+        expect(report.swiperVerdict.predictedRetentionScore).toBeGreaterThanOrEqual(0);
+
+        // 5. Prescriptive Tri-Archetype Remake (SC-4)
+        expect(report.prescriptiveRewrites).toHaveLength(3);
+        const archetypes = report.prescriptiveRewrites.map((r) => r.archetype);
+        expect(archetypes).toContain('negative_frame');
+        expect(archetypes).toContain('high_stakes_intrigue');
+        expect(archetypes).toContain('visceral_pattern_interrupt');
+
+        for (const rewrite of report.prescriptiveRewrites) {
+          expect(rewrite.hookText.trim().split(/\s+/).length).toBeLessThanOrEqual(8);
+          expect(rewrite.engineeringRationale.length).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    it('returns 200 OK with full deconstruction report for mediocreScript', async () => {
+      const response = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: mediocreScript })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      const parsedReport = DeconstructorReportSchema.safeParse(response.body);
+      expect(parsedReport.success).toBe(true);
+
+      if (parsedReport.success) {
+        expect(parsedReport.data.negativeCritique.length).toBeGreaterThanOrEqual(2);
+      }
+    });
+
+    it('returns 400 Bad Request with ValidationError for empty script', async () => {
+      const response = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: emptyScript })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toBeDefined();
+      const errorMsg = JSON.stringify(response.body);
+      expect(errorMsg).toMatch(/empty|validation/i);
+    });
+
+    it('returns 400 Bad Request with ValidationError for whitespace-only script', async () => {
+      const response = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: whitespaceScript })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toBeDefined();
+      const errorMsg = JSON.stringify(response.body);
+      expect(errorMsg).toMatch(/empty|whitespace|validation/i);
+    });
+
+    it('returns 400 Bad Request with ValidationError for script exceeding 2,000 characters', async () => {
+      expect(oversizedScript.length).toBeGreaterThan(2000);
+
+      const response = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: oversizedScript })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toBeDefined();
+      const errorMsg = JSON.stringify(response.body);
+      expect(errorMsg).toMatch(/2,?000|limit|exceed|validation/i);
+    });
+
+    it('returns 400 Bad Request when request body is missing required script text', async () => {
+      const response = await request(getApp())
+        .post('/api/deconstruct')
+        .send({})
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toBeDefined();
+    });
+  });
+});

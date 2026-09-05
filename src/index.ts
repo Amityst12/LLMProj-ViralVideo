@@ -25,6 +25,9 @@ export * from './services/agents/remakeArchitect.js';
 // Main Orchestrator
 export * from './services/deconstructorOrchestrator.js';
 
+// HTTP Server & Delivery Layer
+export * from './app.js';
+
 // System Metadata (Backwards-compatibility)
 export interface SystemMetadata {
   readonly name: string;

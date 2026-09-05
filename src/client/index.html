@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viral Hook & Retention Deconstructor | LLMProj-ViralVideo</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header Bar -->
+    <header class="navbar">
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <div class="brand-text">
+          <h1>Viral Hook & Retention Deconstructor</h1>
+          <p class="subtitle">Adversarial Multi-Agent Attention Engine &bull; Zero Flattery</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span id="mode-badge" class="badge badge-sim">⚡ Simulation Mode</span>
+        <span class="badge badge-rate">150 WPM Standard</span>
+      </div>
+    </header>
+
+    <main class="main-container">
+      <!-- Input Panel Section -->
+      <section class="card input-section">
+        <div class="card-header">
+          <div class="title-with-pill">
+            <h2>Script Ingestion & Diagnostics</h2>
+            <span class="pill-tag">SC-1 Boundary Gate</span>
+          </div>
+          <div class="sample-actions">
+            <button type="button" id="load-viral-btn" class="btn btn-secondary btn-sm">
+              <span class="btn-icon">🔥</span> Load Viral Script
+            </button>
+            <button type="button" id="load-mediocre-btn" class="btn btn-secondary btn-sm">
+              <span class="btn-icon">😴</span> Load Mediocre Script
+            </button>
+          </div>
+        </div>
+
+        <form id="deconstruct-form" class="script-form">
+          <div class="textarea-wrapper">
+            <textarea
+              id="script-input"
+              placeholder="Paste your short-form video script here (TikTok, Instagram Reels, YouTube Shorts)... Max 2,000 characters."
+              rows="5"
+              maxlength="2000"
+              required
+            ></textarea>
+            <div class="counter-bar">
+              <span id="char-counter" class="char-count">0 / 2,000 characters</span>
+              <span id="word-counter" class="word-count">0 words</span>
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <div id="error-banner" class="alert-banner hidden" role="alert">
+              <span class="alert-icon">⚠️</span>
+              <span id="error-message" class="alert-text"></span>
+            </div>
+            <button type="submit" id="submit-btn" class="btn btn-primary btn-large">
+              <span class="btn-text">Deconstruct Retention Dynamics</span>
+              <span class="btn-loader hidden"></span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Results View (Populated after deconstruction) -->
+      <div id="results-view" class="results-layout hidden">
+        <!-- Cadence & Temporal Windows (SC-1) -->
+        <section class="card cadence-section">
+          <div class="card-header">
+            <h3>Spoken Cadence & Temporal Window Slicing</h3>
+            <span class="badge-accent" id="cadence-wpm-badge">150 Spoken WPM (2.5 wps)</span>
+          </div>
+          <div class="cadence-grid">
+            <div class="window-card window-swipe">
+              <div class="window-header">
+                <span class="window-pill swipe-pill">The Swipe Zone &bull; 0.0–3.0s</span>
+                <span id="swipe-word-badge" class="stat-pill">8 words</span>
+              </div>
+              <p class="window-desc">Critical attention gate where the viewer decides to stay or swipe.</p>
+              <div class="script-excerpt swipe-highlight" id="swipe-text-view"></div>
+            </div>
+
+            <div class="window-card window-value">
+              <div class="window-header">
+                <span class="window-pill value-pill">Value Delivery &bull; 3.0–15.0s</span>
+                <span id="value-word-badge" class="stat-pill">0 words</span>
+              </div>
+              <p class="window-desc">Core thesis payoff and narrative bridge.</p>
+              <div class="script-excerpt" id="value-text-view"></div>
+            </div>
+
+            <div class="window-card window-body">
+              <div class="window-header">
+                <span class="window-pill body-pill">Body & Resolution &bull; 15.0s+</span>
+                <span id="body-word-badge" class="stat-pill">0 words</span>
+              </div>
+              <p class="window-desc">Sustained argument, climax, and call to action.</p>
+              <div class="script-excerpt" id="body-text-view"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Twin Column Diagnostics: Swiper + Dimensions -->
+        <div class="two-col-grid">
+          <!-- The Skeptic Swiper (SC-3) -->
+          <section class="card swiper-card">
+            <div class="card-header">
+              <div class="title-with-pill">
+                <h3>The Skeptic Swiper</h3>
+                <span class="pill-tag pill-adversarial">Adversarial Simulation</span>
+              </div>
+              <span id="swiper-timestamp-badge" class="badge-timestamp">Survived</span>
+            </div>
+
+            <div class="swiper-content">
+              <div class="retention-score-block">
+                <div class="gauge-ring" id="retention-gauge">
+                  <span id="retention-percent-val" class="gauge-value">88%</span>
+                  <span class="gauge-label">3s Retention</span>
+                </div>
+                <div class="swiper-status-summary">
+                  <div class="summary-line">
+                    <span class="summary-label">Swipe Timing:</span>
+                    <strong id="swipe-at-text" class="status-green">Survived past 3.0s</strong>
+                  </div>
+                  <div class="summary-line">
+                    <span class="summary-label">Feed Attention Risk:</span>
+                    <span id="retention-risk-label" class="risk-low">Minimal</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="verdict-box">
+                <span class="verdict-tag">Brutal Verdict:</span>
+                <blockquote id="brutal-verdict-quote" class="verdict-quote">
+                  "Hook held attention past 3 seconds."
+                </blockquote>
+              </div>
+            </div>
+          </section>
+
+          <!-- 5-Dimensional Retention Evaluation (SC-2) -->
+          <section class="card dimensions-card">
+            <div class="card-header">
+              <h3>5-Dimensional Retention Scoring</h3>
+              <div class="score-pill-container">
+                <span class="score-label">Hook Velocity:</span>
+                <span id="hook-velocity-score" class="score-pill">83.25</span>
+              </div>
+            </div>
+
+            <div class="dimensions-list">
+              <div class="dim-row">
+                <div class="dim-meta">
+                  <span class="dim-name">Curiosity Gap</span>
+                  <span id="dim-curiosity-val" class="dim-val">85 / 100</span>
+                </div>
+                <div class="progress-track"><div id="dim-curiosity-bar" class="progress-fill" style="width: 85%;"></div></div>
+              </div>
+
+              <div class="dim-row">
+                <div class="dim-meta">
+                  <span class="dim-name">Cognitive Friction (Ease)</span>
+                  <span id="dim-friction-val" class="dim-val">90 / 100</span>
+                </div>
+                <div class="progress-track"><div id="dim-friction-bar" class="progress-fill" style="width: 90%;"></div></div>
+              </div>
+
+              <div class="dim-row">
+                <div class="dim-meta">
+                  <span class="dim-name">Pattern Interrupt</span>
+                  <span id="dim-pattern-val" class="dim-val">85 / 100</span>
+                </div>
+                <div class="progress-track"><div id="dim-pattern-bar" class="progress-fill" style="width: 85%;"></div></div>
+              </div>
+
+              <div class="dim-row">
+                <div class="dim-meta">
+                  <span class="dim-name">Emotional Stake</span>
+                  <span id="dim-emotional-val" class="dim-val">80 / 100</span>
+                </div>
+                <div class="progress-track"><div id="dim-emotional-bar" class="progress-fill" style="width: 80%;"></div></div>
+              </div>
+
+              <div class="dim-row">
+                <div class="dim-meta">
+                  <span class="dim-name">Sensory Specificity</span>
+                  <span id="dim-sensory-val" class="dim-val">75 / 100</span>
+                </div>
+                <div class="progress-track"><div id="dim-sensory-bar" class="progress-fill" style="width: 75%;"></div></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Anti-Sycophancy Negative Critique Box (SC-2.1) -->
+        <section class="card critique-card">
+          <div class="card-header">
+            <div class="title-with-pill">
+              <h3>Anti-Sycophancy Gate: Identified Failure Points</h3>
+              <span class="pill-tag pill-invariant">&ge; 2 Invariant Enforced</span>
+            </div>
+            <span class="critique-count-badge" id="critique-count-badge">2 Failure Points</span>
+          </div>
+          <p class="critique-lead">Empirical flaws detected in the opening 3 seconds. Flattery is mathematically prohibited.</p>
+          <ul id="critique-list" class="critique-list"></ul>
+        </section>
+
+        <!-- Tri-Archetype Prescriptive Remake Blueprints (SC-4) -->
+        <section class="card remakes-section">
+          <div class="card-header">
+            <div class="title-with-pill">
+              <h3>Tri-Archetype Remake Blueprints</h3>
+              <span class="pill-tag pill-action">&le; 8 Words &bull; &le; 4.0s Duration</span>
+            </div>
+            <span class="badge-subtle">Engineered to Survive Second 3</span>
+          </div>
+
+          <div id="remakes-grid" class="remakes-grid">
+            <!-- Dynamically injected via JavaScript -->
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>LLMProj-ViralVideo &bull; Agentic Video Retention Deconstructor &bull; Strict Anti-Sycophancy Pipeline</p>
+    </footer>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
