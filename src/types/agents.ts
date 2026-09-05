@@ -48,8 +48,8 @@ export interface ArchetypeRewrite {
 }
 
 export interface RemakeOutput {
-  readonly rewrites: readonly [ArchetypeRewrite, ArchetypeRewrite, ArchetypeRewrite];
-  readonly prescriptiveRewrites?: readonly ArchetypeRewrite[];
+  readonly prescriptiveRewrites: readonly ArchetypeRewrite[];
+  readonly rewrites?: readonly ArchetypeRewrite[];
 }
 
 export interface DeconstructorReportMetadata {
