@@ -214,39 +214,74 @@
 - **Target Deliverable**: Persistent database layer (`HistoryRepository`) writing to `.data/history.json` with in-memory serverless fallback, `GET /api/history` and `GET /api/history/:id` endpoints, frontend Past Analyses drawer with instant report replay, Netlify serverless deployment via `netlify/functions/api.ts` and `netlify.toml`, and automated compliance scorecard script `scripts/verify-course-compliance.mjs`.
 - **Git Commit Target**: `feat(architecture): implement Module 7 full-stack persistence, past scripts drawer, and Netlify deployment`
 
-### Persistence & Serverless Architecture
+### 4-Pillar Full-Stack Architecture & Request-Response Cycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Creator / User
+    participant Browser as Pillar 1: Browser UI<br/>(Dashboard & Past Analyses Drawer)
+    participant Netlify as Pillar 4: Netlify Serverless<br/>(netlify.toml & functions/api)
+    participant Backend as Pillar 2: Express & Orchestrator<br/>(src/app.ts & Agents)
+    participant Database as Pillar 3: Persistence DB<br/>(HistoryRepository & .data/)
+
+    %% 1. Analysis Flow
+    Note over User,Database: Flow A: Script Deconstruction & Automatic Persistence
+    User->>Browser: Enter script & click "⚡ Deconstruct Video"
+    Browser->>Netlify: HTTP POST /api/deconstruct { text, apiKey, model }
+    Netlify->>Backend: serverlessApp() normalizes path and forwards to Express
+    Backend->>Backend: Ingestion (150 WPM) -> Parallel Diagnostics -> Chained Remake
+    Backend->>Database: historyRepo.saveAnalysis(scriptText, report)
+    Note over Database: Writes to .data/history.json (or in-memory cache on read-only FS)
+    Database-->>Backend: Return record with generated UUID
+    Backend-->>Netlify: HTTP 200 { id, ...report, economics }
+    Netlify-->>Browser: Return JSON response
+    Browser->>Browser: Render visual diagnostics, metrics, and token economics
+
+    %% 2. History & Replay Flow
+    Note over User,Database: Flow B: Past Analyses Drawer & Instant Replay
+    User->>Browser: Click "📜 Past Analyses" button
+    Browser->>Netlify: HTTP GET /api/history
+    Netlify->>Backend: Forward to Express router
+    Backend->>Database: historyRepo.listAnalyses()
+    Database-->>Backend: Return descending array of analysis summaries
+    Backend-->>Netlify: HTTP 200 [ { id, date, survivalScore, snippet } ]
+    Netlify-->>Browser: Render interactive history drawer cards
+    User->>Browser: Click specific history card
+    Browser->>Netlify: HTTP GET /api/history/:id
+    Netlify->>Backend: Forward request with param :id
+    Backend->>Database: historyRepo.getAnalysisById(id)
+    Database-->>Backend: Return full analysis record
+    Backend-->>Netlify: HTTP 200 { id, scriptText, report, createdAt }
+    Netlify-->>Browser: Replay analysis into dashboard & activate Replay Banner
+```
 
 ```
-[Web Client Header Bar] (src/client/)
-- Button: 📜 Past Analyses -> Opens #history-panel slide-over drawer
-- History Cards: Date, Survival Score chip, Model tag, Preview snippet
-- Replay Mode: Clicking card triggers GET /api/history/:id, populates
-  script input, renders deconstruction dashboard, and activates Replay Banner
+[Pillar 1: Web Client UI] (src/client/)
+- Slide-Over Drawer: #history-panel with live card list
+- Instant Replay: Re-populates script, metrics, timeline, and remakes
+- Real-Time Status & Settings: OpenRouter key isolation & model selector
         |
-        | HTTP Requests
+        | HTTP POST /api/deconstruct | GET /api/history | GET /api/history/:id
         v
-+-------------------------------------------------------------+
-| Netlify Serverless Function Handler (netlify/functions/api)  |
-| - Wraps Express app via serverless-http                     |
-| - Rewrites /.netlify/functions/api/* to /api/*              |
-| - netlify.toml: routes /api/* -> functions/api              |
-+-------------------------------------------------------------+
+[Pillar 4: Netlify Serverless Deployment] (netlify.toml & netlify/functions/api.ts)
+- netlify.toml rewrites /api/* -> /.netlify/functions/api/:splat
+- Serverless adapter (serverless-http) normalizes event paths to standard Express routes
+- Static asset serving from src/client/
         |
         v
-+-------------------------------------------------------------+
-| Express API Application (src/app.ts)                        |
-| - POST /api/deconstruct -> Saves report & returns record ID |
-| - GET  /api/history     -> Returns newest-to-oldest list    |
-| - GET  /api/history/:id -> Returns full report or 404       |
-+-------------------------------------------------------------+
+[Pillar 2: Express Backend & Orchestration] (src/app.ts & src/services/)
+- Express 5.x router handling validation, dynamic drivers, and pipeline orchestration
+- Stage 1: 150 WPM temporal slicing (0-3s, 3-15s, 15s+)
+- Stage 2: Concurrent diagnostics (HookAuditor, PacingTracker, SkepticSwiper)
+- Stage 3: Chained Remake synthesis (RemakeArchitect)
+- Stage 4: Token economics aggregation & response packaging
         |
         v
-+-------------------------------------------------------------+
-| Database Persistence Layer (src/services/historyRepository) |
-| - Primary: JSON file persistence at .data/history.json       |
-| - Serverless Fallback: In-memory store on read-only FS      |
-| - Unique UUID generation via node:crypto.randomUUID()        |
-+-------------------------------------------------------------+
+[Pillar 3: Database Persistence Layer] (src/services/historyRepository.ts)
+- JSON flat-file storage at .data/history.json
+- UUID identification via node:crypto.randomUUID()
+- Automatic read-only filesystem detection with seamless in-memory fallback for serverless
 ```
 
 ### Team Contributions (Sprint 5 / Turn 6)
