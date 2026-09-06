@@ -207,6 +207,67 @@
 
 ---
 
+---
+
+## Sprint 5 (Turn 6): Persistence, Past Scripts Drawer & Netlify Serverless Deployment
+- **Modules Covered**: Module 7 (*Web App Architecture & Persistence*), Module 8 (*Legibility & Replay UI*), Module 13 (*TDD Red-to-Green*), Module 16 (*Merge-Readiness & Compliance*).
+- **Target Deliverable**: Persistent database layer (`HistoryRepository`) writing to `.data/history.json` with in-memory serverless fallback, `GET /api/history` and `GET /api/history/:id` endpoints, frontend Past Analyses drawer with instant report replay, Netlify serverless deployment via `netlify/functions/api.ts` and `netlify.toml`, and automated compliance scorecard script `scripts/verify-course-compliance.mjs`.
+- **Git Commit Target**: `feat(architecture): implement Module 7 full-stack persistence, past scripts drawer, and Netlify deployment`
+
+### Persistence & Serverless Architecture
+
+```
+[Web Client Header Bar] (src/client/)
+- Button: 📜 Past Analyses -> Opens #history-panel slide-over drawer
+- History Cards: Date, Survival Score chip, Model tag, Preview snippet
+- Replay Mode: Clicking card triggers GET /api/history/:id, populates
+  script input, renders deconstruction dashboard, and activates Replay Banner
+        |
+        | HTTP Requests
+        v
++-------------------------------------------------------------+
+| Netlify Serverless Function Handler (netlify/functions/api)  |
+| - Wraps Express app via serverless-http                     |
+| - Rewrites /.netlify/functions/api/* to /api/*              |
+| - netlify.toml: routes /api/* -> functions/api              |
++-------------------------------------------------------------+
+        |
+        v
++-------------------------------------------------------------+
+| Express API Application (src/app.ts)                        |
+| - POST /api/deconstruct -> Saves report & returns record ID |
+| - GET  /api/history     -> Returns newest-to-oldest list    |
+| - GET  /api/history/:id -> Returns full report or 404       |
++-------------------------------------------------------------+
+        |
+        v
++-------------------------------------------------------------+
+| Database Persistence Layer (src/services/historyRepository) |
+| - Primary: JSON file persistence at .data/history.json       |
+| - Serverless Fallback: In-memory store on read-only FS      |
+| - Unique UUID generation via node:crypto.randomUUID()        |
++-------------------------------------------------------------+
+```
+
+### Team Contributions (Sprint 5 / Turn 6)
+1. **Ada (QA & Test Automation - TDD Red Phase)**:
+   - Authored `tests/unit/historyRepository.test.ts` (5 tests): verifies `saveAnalysis`, `listAnalyses` descending sort, `getAnalysisById`, and null checks.
+   - Authored `tests/unit/serverlessHandler.test.ts` (3 tests): verifies serverless handler delegation for health, deconstruct, and input validation.
+   - Expanded `tests/integration/apiRoute.test.ts` with 4 new tests: record ID attachment on deconstruct, history listing, detailed history retrieval, and 404 boundary handling.
+2. **Alan (Core Backend & Systems - Implementation Green Phase)**:
+   - Implemented `HistoryRepository` in `src/services/historyRepository.ts` with dual method signatures, JSON file persistence, and automatic read-only serverless fallback.
+   - Connected `POST /api/deconstruct` to persist records and return `id`.
+   - Built `GET /api/history` and `GET /api/history/:id` in `src/app.ts`.
+   - Built Netlify deployment layer: `netlify/functions/api.ts` using `serverless-http` and root `netlify.toml`.
+   - Engineered frontend Past Analyses drawer in `src/client/` (`index.html`, `styles.css`, `js/app.js`) supporting instant Replay Mode.
+   - Authored `scripts/verify-course-compliance.mjs` verifying all course modules (Framing, Knuth Spec, Anti-Sycophancy, Chaining, Token Economics, 4-Pillars, Zero Secrets) achieving a 100% Scorecard.
+3. **Grace (Gatekeeper & Verification - Merge-Readiness)**:
+   - Executed secret scanning: 0 secrets detected.
+   - Ran `npm run verify` -> 70/70 tests passed across 8 test suites.
+   - Ran `npm run verify:compliance` -> 7/7 modules (100%) verified compliant.
+
+---
+
 ## Comprehensive Verification Gate Audit Report
 
 | Gate Check | Execution Command | Result | Audit Findings & Quality Metrics |
@@ -214,16 +275,20 @@
 | **Zero-Leakage Secrets** | `node scripts/check-secrets.mjs` | **PASSED** | 0 secrets, API keys, or private tokens detected across workspace |
 | **ESLint Static Analysis** | `npm run lint` | **PASSED** | 0 errors, 0 warnings (clean TypeScript ESLint v8/9) |
 | **TypeScript Strict Build** | `npm run build` | **PASSED** | TypeScript 5.x strict mode compilation passed with 0 diagnostic issues |
-| **Vitest Test Suite** | `npm run test` | **PASSED** | **58/58 tests passed across 6 test files (100% pass rate)** |
+| **Vitest Test Suite** | `npm run test` | **PASSED** | **70/70 tests passed across 8 test files (100% pass rate)** |
+| **Course Compliance Audit** | `npm run verify:compliance` | **PASSED** | **7/7 modules (100%) verified compliant with Scorecard** |
 | **Composite Pipeline Gate** | `npm run verify` | **PASSED** | Entire lint -> build -> test verification chain succeeded cleanly |
 
 ---
 
-## Test Suite Inventory (58 Tests Passing)
+## Test Suite Inventory (70 Tests Passing)
 
 1. `tests/index.test.ts` (1 test): System metadata and initialization contract.
 2. `tests/unit/cadenceEstimator.test.ts` (13 tests): 150 WPM math, temporal slicing, boundary rejection.
 3. `tests/unit/scriptValidator.test.ts` (11 tests): Zod schema constraints, whitespace trimming, 2,000-character caps.
 4. `tests/unit/coordination.test.ts` (12 tests): Multi-agent output contracts and Anti-Sycophancy invariant enforcement.
 5. `tests/unit/orchestrator.test.ts` (11 tests): End-to-end pipeline execution, parallel diagnostics, chained remake, JSON extractor, and driver injection.
-6. `tests/integration/apiRoute.test.ts` (10 tests): HTTP delivery layer, health checks, static asset delivery, API boundary validation, `/api/models` catalog, and execution economics telemetry.
+6. `tests/unit/historyRepository.test.ts` (5 tests): Persistence layer saving, descending date sorting, ID lookup, and serverless fallback.
+7. `tests/unit/serverlessHandler.test.ts` (3 tests): Netlify serverless HTTP event delegation, health check, and error handling.
+8. `tests/integration/apiRoute.test.ts` (14 tests): Full HTTP delivery layer, health check, static files, deconstruction boundaries, economics telemetry, history list, and history replay detail.
+

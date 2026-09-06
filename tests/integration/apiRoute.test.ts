@@ -2,16 +2,22 @@
  * tests/integration/apiRoute.test.ts
  *
  * Acceptance & Integration tests for Delivery Layer & Web Server (Module 7 & Module 8).
- * Tests HTTP API endpoints and static delivery before Alan's server implementation.
+ * Tests HTTP API endpoints, database persistence, and static delivery.
  *
  * Invariants tested:
  * 1. POST /api/deconstruct:
  *    - Status 200 with full DeconstructorReport (Cadence, Diagnostics, 3 Rewrites) for valid scripts.
  *    - Status 400 with detailed ValidationError for empty, whitespace-only, or oversized (> 2,000 chars) scripts.
+ *    - Automatically persists result in Database and returns unique record id.
  * 2. GET /api/health:
  *    - Status 200 with health metadata.
  * 3. Static Web Serving:
  *    - GET / returns 200 OK with index.html (text/html content).
+ * 4. GET /api/models:
+ *    - Status 200 with recommended OpenRouter models and pricing rates.
+ * 5. GET /api/history & GET /api/history/:id (Turn 6 Persistence):
+ *    - GET /api/history returns 200 with array of past analyses (preview, score, model).
+ *    - GET /api/history/:id returns 200 with full deconstruction report, or 404 if not found.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -58,7 +64,7 @@ function getApp(): AppTarget {
   return app;
 }
 
-describe('Delivery Layer & API Integration Tests (Turn 4)', () => {
+describe('Delivery Layer & API Integration Tests (Turn 4 - Turn 6)', () => {
   describe('GET /api/health', () => {
     it('returns status 200 OK with health status metadata', async () => {
       const response = await request(getApp()).get('/api/health');
@@ -208,6 +214,18 @@ describe('Delivery Layer & API Integration Tests (Turn 4)', () => {
       expect(typeof response.body.economics.estimatedCostUsd).toBe('number');
       expect(typeof response.body.economics.isLiveExecution).toBe('boolean');
     });
+
+    it('automatically persists the deconstruction result in database and returns record id in response (Turn 6)', async () => {
+      const response = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: viralScript })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      expect(response.body.id).toBeDefined();
+      expect(typeof response.body.id).toBe('string');
+      expect(response.body.id.length).toBeGreaterThan(0);
+    });
   });
 
   describe('GET /api/models (Turn 5 Token Economics)', () => {
@@ -225,6 +243,65 @@ describe('Delivery Layer & API Integration Tests (Turn 4)', () => {
       expect(firstModel).toHaveProperty('description');
       expect(firstModel).toHaveProperty('promptCostPerMillion');
       expect(firstModel).toHaveProperty('completionCostPerMillion');
+    });
+  });
+
+  describe('History Persistence Endpoints (Turn 6: GET /api/history & GET /api/history/:id)', () => {
+    it('GET /api/history returns 200 OK with an array of past analyses including script preview, retention score, and model', async () => {
+      // Seed an analysis through POST /api/deconstruct
+      const postRes = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: viralScript, model: 'test-model' })
+        .set('Content-Type', 'application/json');
+
+      expect(postRes.status).toBe(200);
+
+      const historyRes = await request(getApp()).get('/api/history');
+
+      expect(historyRes.status).toBe(200);
+      expect(historyRes.headers['content-type']).toMatch(/json/);
+
+      const items = Array.isArray(historyRes.body)
+        ? historyRes.body
+        : (historyRes.body.history as unknown[]);
+
+      expect(Array.isArray(items)).toBe(true);
+      expect(items.length).toBeGreaterThanOrEqual(1);
+
+      const item = items[0] as Record<string, unknown>;
+      expect(item).toHaveProperty('id');
+      expect(item['scriptPreview'] ?? item['scriptText'] ?? item['text']).toBeDefined();
+      expect(item['retentionScore'] ?? item['compositeScore'] ?? item['score']).toBeDefined();
+      expect(item['model'] ?? item['modelId']).toBeDefined();
+    });
+
+    it('GET /api/history/:id returns 200 OK with the full deconstruction report for a valid id', async () => {
+      const postRes = await request(getApp())
+        .post('/api/deconstruct')
+        .send({ text: viralScript })
+        .set('Content-Type', 'application/json');
+
+      expect(postRes.status).toBe(200);
+      const savedId = postRes.body.id as string | undefined;
+      expect(savedId).toBeDefined();
+
+      const detailRes = await request(getApp()).get(`/api/history/${savedId}`);
+
+      expect(detailRes.status).toBe(200);
+      expect(detailRes.headers['content-type']).toMatch(/json/);
+
+      const reportPayload = detailRes.body.report ?? detailRes.body;
+      const parsed = DeconstructorReportSchema.safeParse(reportPayload);
+      expect(parsed.success).toBe(true);
+    });
+
+    it('GET /api/history/:id returns 404 Not Found for non-existent id', async () => {
+      const response = await request(getApp()).get('/api/history/non-existent-analysis-id-99999');
+
+      expect(response.status).toBe(404);
+      expect(response.headers['content-type']).toMatch(/json/);
+      const errorMsg = JSON.stringify(response.body);
+      expect(errorMsg).toMatch(/not found|404/i);
     });
   });
 });

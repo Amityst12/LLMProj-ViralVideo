@@ -23,6 +23,9 @@
       <div class="header-badges">
         <span id="mode-badge" class="badge badge-sim">⚡ Simulation Mode</span>
         <span class="badge badge-rate">150 WPM Standard</span>
+        <button type="button" id="history-toggle-btn" class="btn btn-secondary btn-sm" title="View Past Script Analyses">
+          📜 Past Analyses
+        </button>
         <button type="button" id="settings-toggle-btn" class="btn btn-secondary btn-sm" title="Configure OpenRouter API Key and Models">
           ⚙️ Settings
         </button>
@@ -79,7 +82,35 @@
       </div>
     </div>
 
+    <!-- Past Analyses History Drawer (Module 7 Persistence) -->
+    <div id="history-panel" class="settings-drawer hidden">
+      <div class="settings-content history-drawer-content">
+        <div class="settings-header">
+          <div class="title-with-pill">
+            <h3>📜 Past Analyses</h3>
+            <span class="pill-tag pill-action">Module 7 Persistence</span>
+          </div>
+          <button type="button" id="close-history-btn" class="close-btn" aria-label="Close history">&times;</button>
+        </div>
+
+        <p class="history-intro">Saved analyses from your local database. Click any card to replay the complete deconstruction report.</p>
+
+        <div id="history-list" class="history-cards-container">
+          <div class="history-loading">Loading saved analyses...</div>
+        </div>
+      </div>
+    </div>
+
     <main class="main-container">
+      <!-- Replay Mode Banner -->
+      <div id="replay-banner" class="replay-alert-banner hidden">
+        <div class="replay-text-group">
+          <span class="replay-badge">📜 REPLAY MODE</span>
+          <span id="replay-info-text">Viewing historical report from <strong id="replay-timestamp">--</strong> using <strong id="replay-model">--</strong></span>
+        </div>
+        <button type="button" id="exit-replay-btn" class="btn btn-secondary btn-sm">Exit Replay</button>
+      </div>
+
       <!-- Input Panel Section -->
       <section class="card input-section">
         <div class="card-header">

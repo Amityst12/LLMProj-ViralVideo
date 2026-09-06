@@ -176,6 +176,7 @@ export const DeconstructorReportSchema = z.object({
   swiperVerdict: SkepticSwiperOutputSchema,
   prescriptiveRewrites: z.array(ArchetypeRewriteSchema).length(3, 'Must provide exactly 3 archetypal rewrites'),
   economics: ExecutionEconomicsSchema.optional(),
+  id: z.string().optional(),
 });
 
 /**

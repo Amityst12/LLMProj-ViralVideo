@@ -81,4 +81,5 @@ export interface DeconstructorReport {
   readonly swiperVerdict: SkepticSwiperOutput;
   readonly prescriptiveRewrites: readonly ArchetypeRewrite[];
   readonly economics?: ExecutionEconomics;
+  readonly id?: string;
 }

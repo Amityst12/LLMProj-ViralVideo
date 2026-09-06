@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deconstructScript } from './services/deconstructorOrchestrator.js';
+import { historyRepository } from './services/historyRepository.js';
 import { validateScriptText, ValidationError } from './validators/scriptValidator.js';
 import { MockLlmDriver, OpenRouterLlmDriver, RECOMMENDED_MODELS } from './drivers/llmDriver.js';
 
@@ -109,12 +110,77 @@ export function createApp(): Express {
 
       // Execute full multi-agent pipeline
       const report = await deconstructScript(validatedText, { driver });
-      res.status(200).json(report);
+
+      // Persist in history repository (Turn 6)
+      const activeModel = model ?? (apiKey ? 'openrouter' : 'simulation');
+      const savedRecord = await historyRepository.saveAnalysis({
+        scriptText: validatedText,
+        report,
+        model: activeModel,
+      });
+
+      res.status(200).json({
+        ...report,
+        id: savedRecord.id,
+      });
     } catch (err) {
       console.error('[API Error in /api/deconstruct]:', err);
       res.status(500).json({
         error: 'InternalServerError',
         message: err instanceof Error ? err.message : 'An unexpected error occurred during deconstruction',
+      });
+    }
+  });
+
+  // History list endpoint (Turn 6)
+  app.get('/api/history', async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const history = await historyRepository.listAnalyses();
+      res.status(200).json({
+        status: 'ok',
+        history,
+      });
+    } catch (err) {
+      console.error('[API Error in /api/history]:', err);
+      res.status(500).json({
+        error: 'InternalServerError',
+        message: err instanceof Error ? err.message : 'Failed to retrieve history',
+      });
+    }
+  });
+
+  // History detail by ID endpoint (Turn 6)
+  app.get('/api/history/:id', async (req: Request, res: Response): Promise<void> => {
+    try {
+      const rawId = req.params['id'];
+      const id = typeof rawId === 'string' ? rawId : Array.isArray(rawId) ? rawId[0] : undefined;
+      if (!id) {
+        res.status(400).json({ error: 'ValidationError', message: 'Missing record id' });
+        return;
+      }
+
+      const record = await historyRepository.getAnalysisById(id);
+      if (!record) {
+        res.status(404).json({
+          error: 'NotFoundError',
+          message: `Analysis record not found for id: ${id}`,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        ...record.report,
+        id: record.id,
+        scriptText: record.scriptText,
+        model: record.model,
+        createdAt: record.createdAt,
+        report: record.report,
+      });
+    } catch (err) {
+      console.error('[API Error in /api/history/:id]:', err);
+      res.status(500).json({
+        error: 'InternalServerError',
+        message: err instanceof Error ? err.message : 'Failed to retrieve analysis detail',
       });
     }
   });

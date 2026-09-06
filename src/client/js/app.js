@@ -40,6 +40,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveKeyBtn = document.getElementById('save-key-btn');
   const clearKeyBtn = document.getElementById('clear-key-btn');
 
+  // History elements (Turn 6)
+  const historyToggleBtn = document.getElementById('history-toggle-btn');
+  const historyPanel = document.getElementById('history-panel');
+  const closeHistoryBtn = document.getElementById('close-history-btn');
+  const historyList = document.getElementById('history-list');
+  const replayBanner = document.getElementById('replay-banner');
+  const replayTimestamp = document.getElementById('replay-timestamp');
+  const replayModel = document.getElementById('replay-model');
+  const exitReplayBtn = document.getElementById('exit-replay-btn');
+
   // Economics elements
   const econEngineBadge = document.getElementById('econ-engine-badge');
   const econModelName = document.getElementById('econ-model-name');
@@ -106,11 +116,123 @@ document.addEventListener('DOMContentLoaded', () => {
   // Settings Drawer Toggle
   settingsToggleBtn.addEventListener('click', () => {
     settingsPanel.classList.toggle('hidden');
+    if (!settingsPanel.classList.contains('hidden') && historyPanel) {
+      historyPanel.classList.add('hidden');
+    }
   });
 
   closeSettingsBtn.addEventListener('click', () => {
     settingsPanel.classList.add('hidden');
   });
+
+  // History Drawer (Turn 6: Module 7)
+  if (historyToggleBtn && historyPanel) {
+    historyToggleBtn.addEventListener('click', () => {
+      historyPanel.classList.toggle('hidden');
+      if (!historyPanel.classList.contains('hidden')) {
+        settingsPanel.classList.add('hidden');
+        loadHistoryList();
+      }
+    });
+  }
+
+  if (closeHistoryBtn && historyPanel) {
+    closeHistoryBtn.addEventListener('click', () => {
+      historyPanel.classList.add('hidden');
+    });
+  }
+
+  if (exitReplayBtn && replayBanner) {
+    exitReplayBtn.addEventListener('click', () => {
+      replayBanner.classList.add('hidden');
+    });
+  }
+
+  async function loadHistoryList() {
+    if (!historyList) return;
+    historyList.innerHTML = '<div class="history-loading">Loading saved analyses...</div>';
+
+    try {
+      const res = await fetch('/api/history');
+      if (!res.ok) throw new Error('Failed to load history');
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : (data.history || []);
+
+      if (items.length === 0) {
+        historyList.innerHTML = '<div class="history-empty-state">No saved analyses yet. Deconstruct a script to start your history log.</div>';
+        return;
+      }
+
+      historyList.innerHTML = '';
+      for (const item of items) {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+
+        const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Unknown date';
+        const score = item.retentionScore ?? item.compositeScore ?? 0;
+        const scoreClass = score >= 60 ? 'history-score-high' : 'history-score-low';
+        const modelLabel = item.model || item.activeModel || 'simulation';
+        const preview = item.scriptPreview || item.scriptText || 'No text';
+
+        card.innerHTML = `
+          <div class="history-card-header">
+            <span class="history-card-date">${escapeHtml(dateStr)}</span>
+            <div class="history-card-tags">
+              <span class="history-model-chip" title="${escapeHtml(modelLabel)}">${escapeHtml(modelLabel)}</span>
+              <span class="history-score-chip ${scoreClass}">${score}% Score</span>
+            </div>
+          </div>
+          <div class="history-card-preview">${escapeHtml(preview)}</div>
+        `;
+
+        card.addEventListener('click', () => {
+          loadAnalysisById(item.id);
+        });
+
+        historyList.appendChild(card);
+      }
+    } catch {
+      historyList.innerHTML = '<div class="history-empty-state">Unable to load history. Please try again later.</div>';
+    }
+  }
+
+  async function loadAnalysisById(id) {
+    try {
+      setLoading(true);
+      clearError();
+      const res = await fetch(`/api/history/${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error('Failed to fetch historical record');
+      const data = await res.json();
+      const report = data.report || data;
+
+      if (data.scriptText) {
+        scriptInput.value = data.scriptText;
+        updateCounters();
+      }
+
+      renderReport(report);
+      resultsView.classList.remove('hidden');
+
+      // Show Replay Banner
+      if (replayBanner) {
+        const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleString() : 'Saved Date';
+        const modelStr = data.model || report.economics?.modelUsed || 'Recorded Model';
+        if (replayTimestamp) replayTimestamp.textContent = dateStr;
+        if (replayModel) replayModel.textContent = modelStr;
+        replayBanner.classList.remove('hidden');
+      }
+
+      // Close history drawer
+      if (historyPanel) historyPanel.classList.add('hidden');
+      resultsView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      showError(err.message || 'Error loading analysis record');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   saveKeyBtn.addEventListener('click', () => {
     const key = apiKeyInput.value.trim();
@@ -206,6 +328,9 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError();
+    if (replayBanner) {
+      replayBanner.classList.add('hidden');
+    }
 
     const rawText = scriptInput.value.trim();
     if (!rawText) {
